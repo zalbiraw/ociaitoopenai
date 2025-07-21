@@ -1,12 +1,7 @@
-displayName: Demo Plugin
+displayName: OCI AI to OpenAI Plugin
 type: middleware
-iconPath: .assets/icon.png
-
-import: github.com/traefik/plugindemo
-
-summary: '[Demo] Add Request Header'
-
+import: github.com/zalbiraw/ociaitoopenai
+summary: 'Transform OpenAI API requests to OCI GenAI format'
 testData:
-  Headers:
-    X-Demo: test
-    X-URL: '{{URL}}'
+  compartmentId: ocid1.compartment.oc1..example
+  region: us-ashburn-1

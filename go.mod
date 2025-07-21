@@ -1,3 +1,3 @@
-module github.com/traefik/plugindemo
+module github.com/zalbiraw/ociaitoopenai
 
 go 1.19

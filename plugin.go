@@ -99,20 +99,15 @@ func New(ctx context.Context, next http.Handler, cfg *config.Config, name string
 // 5. Transforms the response back to OpenAI format
 func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	log.Printf("[%s] Processing incoming request: %s %s", p.name, req.Method, req.URL.String())
-	log.Printf("[%s] Request headers: %v", p.name, req.Header)
 
 	// Only process POST requests to /chat/completions (OpenAI endpoint)
 	if !p.shouldProcessRequest(req) {
-		log.Printf("[%s] Request does not match processing criteria, passing through", p.name)
 		p.next.ServeHTTP(rw, req)
 		return
 	}
 
-	log.Printf("[%s] Request matches processing criteria, will transform", p.name)
-
 	// Handle different request types
 	if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/models") {
-		log.Printf("[%s] Processing models request", p.name)
 		// Handle models endpoint
 		if err := p.processModelsRequest(rw, req); err != nil {
 			log.Printf("[%s] ERROR: Failed to process models request: %v", p.name, err)
@@ -121,7 +116,6 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Printf("[%s] Processing chat completions request", p.name)
 	// Handle chat completions endpoint
 	originalModel, err := p.processOpenAIRequest(rw, req)
 	if err != nil {
@@ -131,7 +125,6 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	log.Printf("[%s] OpenAI request transformed successfully, original model: %s", p.name, originalModel)
-	log.Printf("[%s] Forwarding transformed request to next handler", p.name)
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)
@@ -140,7 +133,6 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	p.next.ServeHTTP(wrappedWriter, req)
 
 	log.Printf("[%s] Received response from next handler, status: %d", p.name, wrappedWriter.statusCode)
-	log.Printf("[%s] Response body length: %d bytes", p.name, wrappedWriter.body.Len())
 
 	// Transform the response back to OpenAI format
 	if err := p.processResponse(rw, wrappedWriter, originalModel); err != nil {
@@ -148,8 +140,6 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// If transformation fails, write the original response
 		rw.WriteHeader(wrappedWriter.statusCode)
 		_, _ = rw.Write(wrappedWriter.body.Bytes())
-	} else {
-		log.Printf("[%s] Response transformed to OpenAI format successfully", p.name)
 	}
 }
 
@@ -176,50 +166,33 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 		return "", fmt.Errorf("failed to read request body: %w", err)
 	}
 
-	log.Printf("[%s] Request body size: %d bytes", p.name, len(body))
-	log.Printf("[%s] Original request body: %s", p.name, string(body))
-
 	// Close the original body
 	if closeErr := req.Body.Close(); closeErr != nil {
-		log.Printf("[%s] Failed to close request body: %v", p.name, closeErr)
 		return "", fmt.Errorf("failed to close request body: %w", closeErr)
 	}
 
-	log.Printf("[%s] Parsing OpenAI ChatCompletion request", p.name)
 	// Parse OpenAI ChatCompletion request
 	var openAIReq types.ChatCompletionRequest
 	if unmarshalErr := json.Unmarshal(body, &openAIReq); unmarshalErr != nil {
-		log.Printf("[%s] Failed to parse OpenAI request: %v", p.name, unmarshalErr)
 		http.Error(rw, "Failed to parse OpenAI request", http.StatusBadRequest)
 		return "", unmarshalErr
 	}
 
-	log.Printf("[%s] OpenAI request parsed successfully", p.name)
-	log.Printf("[%s] Model: %s, Messages count: %d", p.name, openAIReq.Model, len(openAIReq.Messages))
-	log.Printf("[%s] Temperature: %f, MaxTokens: %d", p.name, openAIReq.Temperature, openAIReq.MaxTokens)
-
-	log.Printf("[%s] Transforming to OCI GenAI format", p.name)
 	// Transform to OCI GenAI format
 	ociReq := p.transformer.ToOracleCloudRequest(openAIReq)
 
-	log.Printf("[%s] Marshaling OCI GenAI request", p.name)
 	// Marshal the OCI GenAI request
 	ociBody, err := json.Marshal(ociReq)
 	if err != nil {
-		log.Printf("[%s] Failed to marshal OCI GenAI request: %v", p.name, err)
 		return "", fmt.Errorf("failed to marshal OCI GenAI request: %w", err)
 	}
-
-	log.Printf("[%s] OCI request body size: %d bytes", p.name, len(ociBody))
-	log.Printf("[%s] Transformed OCI request body: %s", p.name, string(ociBody))
 
 	// Replace request body with transformed content
 	req.Body = io.NopCloser(bytes.NewReader(ociBody))
 	req.ContentLength = int64(len(ociBody))
 
-	// Set host based on region and update the request to point to the OCI GenAI endpoint
+	// Update the request to point to the OCI GenAI endpoint
 	originalURL := req.URL.String()
-	req.URL.Host = fmt.Sprintf("generativeai.%s.oci.oraclecloud.com", p.config.Region)
 	req.URL.Scheme = "https"
 	req.URL.Path = "/20231130/actions/chat"
 	req.URL.RawQuery = "" // Clear any query parameters
@@ -230,21 +203,16 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 	// Set Content-Type header if not already set
 	if req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
-		log.Printf("[%s] Added Content-Type header: application/json", p.name)
 	}
-
-	log.Printf("[%s] Final request headers after transformation: %v", p.name, req.Header)
 
 	return openAIReq.Model, nil
 }
 
 // processModelsRequest handles the transformation of models requests.
 func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) error {
-	// Set host based on region
-	req.URL.Host = fmt.Sprintf("generativeai.%s.oci.oraclecloud.com", p.config.Region)
-	req.URL.Scheme = "https"
-
+	log.Printf("[%s] Processing models request", p.name)
 	// Update URL to OCI models endpoint
+	req.URL.Scheme = "https"
 	req.URL.Path = "/20231130/models"
 
 	// Pass through existing query parameters and only default capability=CHAT
@@ -255,6 +223,10 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	query.Set("compartmentId", p.config.CompartmentID)
 	req.URL.RawQuery = query.Encode()
 	req.RequestURI = ""
+	
+	log.Printf("[%s] Models request URL: %s", p.name, req.URL.String())
+	log.Printf("[%s] Models request query: %s", p.name, req.URL.RawQuery)
+	log.Printf("[%s] CompartmentID: %s", p.name, p.config.CompartmentID)
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)
@@ -263,7 +235,11 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	p.next.ServeHTTP(wrappedWriter, req)
 
 	// Transform OCI models response to OpenAI format
+	log.Printf("[%s] Models response status: %d", p.name, wrappedWriter.statusCode)
+	log.Printf("[%s] Models response body: %s", p.name, wrappedWriter.body.String())
+	
 	if wrappedWriter.statusCode != http.StatusOK {
+		log.Printf("[%s] Non-OK status, returning original response", p.name)
 		rw.WriteHeader(wrappedWriter.statusCode)
 		_, _ = rw.Write(wrappedWriter.body.Bytes())
 		return nil
@@ -297,62 +273,39 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 // processResponse handles the transformation of responses from OCI GenAI back to OpenAI format.
 func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWriter *responseWriter, originalModel string) error {
 	log.Printf("[%s] Processing response, status code: %d", p.name, wrappedWriter.statusCode)
-	log.Printf("[%s] Response body size: %d bytes", p.name, wrappedWriter.body.Len())
-	log.Printf("[%s] Raw OCI response body: %s", p.name, wrappedWriter.body.String())
 
 	// Only transform successful responses
 	if wrappedWriter.statusCode != http.StatusOK {
-		log.Printf("[%s] Non-OK status code (%d), returning original response", p.name, wrappedWriter.statusCode)
 		originalWriter.WriteHeader(wrappedWriter.statusCode)
 		_, _ = originalWriter.Write(wrappedWriter.body.Bytes())
 		return nil
 	}
 
-	log.Printf("[%s] Parsing OCI GenAI response", p.name)
 	// Parse the OCI GenAI response
 	var ociResp types.OracleCloudResponse
 	if err := json.Unmarshal(wrappedWriter.body.Bytes(), &ociResp); err != nil {
 		log.Printf("[%s] Failed to parse OCI response as JSON: %v", p.name, err)
-		log.Printf("[%s] Raw response body: %s", p.name, wrappedWriter.body.String())
 		return fmt.Errorf("failed to parse OCI GenAI response: %w", err)
 	}
 
-	log.Printf("[%s] OCI response parsed successfully", p.name)
-	log.Printf("[%s] OCI response text: %s", p.name, ociResp.ChatResponse.Text)
-	log.Printf("[%s] OCI finish reason: %s", p.name, ociResp.ChatResponse.FinishReason)
-	log.Printf("[%s] OCI usage - Prompt: %d, Completion: %d, Total: %d", p.name, 
-		ociResp.ChatResponse.Usage.PromptTokens, 
-		ociResp.ChatResponse.Usage.CompletionTokens, 
-		ociResp.ChatResponse.Usage.TotalTokens)
-
-	log.Printf("[%s] Transforming to OpenAI format", p.name)
 	// Transform to OpenAI format
 	openAIResp := p.transformer.ToOpenAIResponse(ociResp, originalModel)
 
-	log.Printf("[%s] Marshaling OpenAI response", p.name)
 	// Marshal the OpenAI response
 	openAIBody, err := json.Marshal(openAIResp)
 	if err != nil {
-		log.Printf("[%s] Failed to marshal OpenAI response: %v", p.name, err)
 		return fmt.Errorf("failed to marshal OpenAI response: %w", err)
 	}
-
-	log.Printf("[%s] OpenAI response body size: %d bytes", p.name, len(openAIBody))
-	log.Printf("[%s] Transformed OpenAI response body: %s", p.name, string(openAIBody))
 
 	// Set proper headers for the transformed response
 	originalWriter.Header().Set("Content-Type", "application/json")
 	originalWriter.Header().Set("Content-Length", fmt.Sprintf("%d", len(openAIBody)))
-
-	log.Printf("[%s] Writing response headers and body", p.name)
 
 	// Write the status code
 	originalWriter.WriteHeader(http.StatusOK)
 
 	// Write the transformed response
 	_, _ = originalWriter.Write(openAIBody)
-
-	log.Printf("[%s] Response transformation completed successfully", p.name)
 
 	return nil
 }

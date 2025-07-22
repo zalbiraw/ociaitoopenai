@@ -191,6 +191,13 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	req.URL.RawQuery = "compartmentId=" + url.QueryEscape(p.config.CompartmentID) + "&capability=CHAT"
 	req.RequestURI = ""
 	req.Header.Set("Content-Type", "application/json")
+	
+	// Remove X-Forwarded headers
+	req.Header.Del("X-Forwarded-Proto")
+	req.Header.Del("X-Forwarded-Port")
+	req.Header.Del("X-Forwarded-Host")
+	req.Header.Del("X-Forwarded-Server")
+	req.Header.Del("X-Real-Ip")
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)

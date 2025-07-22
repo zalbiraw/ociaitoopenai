@@ -19,6 +19,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/zalbiraw/ociaitoopenai/internal/config"
@@ -185,9 +186,13 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	log.Printf("[%s] Processing models request", p.name)
 
 	req.URL.Path = "/20231130/models"
-	req.URL.RawQuery = ""
+
+	// Add query parameters
+	q := url.Values{}
+	q.Add("compartmentId", p.config.CompartmentID)
+	q.Add("capability", "CHAT")
+	req.URL.RawQuery = q.Encode()
 	req.RequestURI = ""
-	req.Header.Set("Content-Type", "application/json")
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)

@@ -33,8 +33,15 @@ func New(cfg *config.Config) *Transformer {
 // 3. Uses OpenAI request parameters if provided, otherwise falls back to config defaults
 // 4. Constructs the Oracle Cloud request structure with proper serving mode and chat parameters.
 func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest) types.OracleCloudRequest {
+	fmt.Printf("Transform: Starting transformation from OpenAI to OCI format\n")
+	fmt.Printf("Transform: Input model: %s\n", openAIReq.Model)
+	fmt.Printf("Transform: Input messages count: %d\n", len(openAIReq.Messages))
+	fmt.Printf("Transform: Input temperature: %f\n", openAIReq.Temperature)
+	fmt.Printf("Transform: Input max_tokens: %d\n", openAIReq.MaxTokens)
+
 	// Handle empty messages array
 	if len(openAIReq.Messages) == 0 {
+		fmt.Printf("Transform: No messages provided, returning empty request\n")
 		// Return empty request if no messages provided
 		return types.OracleCloudRequest{
 			CompartmentID: t.config.CompartmentID,
@@ -55,11 +62,14 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 	var chatHistory []interface{}
 	var currentMessage string
 
+	fmt.Printf("Transform: Processing messages\n")
 	// Process all messages except the last one as chat history
 	for i, msg := range openAIReq.Messages {
+		fmt.Printf("Transform: Message %d - Role: %s, Content: %s\n", i, msg.Role, msg.Content)
 		if i == len(openAIReq.Messages)-1 {
 			// Last message becomes the current message to respond to
 			currentMessage = msg.Content
+			fmt.Printf("Transform: Last message set as current message: %s\n", currentMessage)
 		} else {
 			// Add to chat history in OCI format
 			historyEntry := map[string]interface{}{
@@ -67,8 +77,12 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 				"content": msg.Content,
 			}
 			chatHistory = append(chatHistory, historyEntry)
+			fmt.Printf("Transform: Added to chat history: %+v\n", historyEntry)
 		}
 	}
+
+	fmt.Printf("Transform: Chat history length: %d\n", len(chatHistory))
+	fmt.Printf("Transform: Current message: %s\n", currentMessage)
 
 	// Construct the Oracle Cloud request structure
 	oracleReq := types.OracleCloudRequest{
@@ -93,6 +107,12 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 		},
 	}
 
+	fmt.Printf("Transform: OCI request constructed successfully\n")
+	fmt.Printf("Transform: CompartmentID: %s\n", oracleReq.CompartmentID)
+	fmt.Printf("Transform: Model ID: %s\n", oracleReq.ServingMode.ModelID)
+	fmt.Printf("Transform: Serving Type: %s\n", oracleReq.ServingMode.ServingType)
+	fmt.Printf("Transform: API Format: %s\n", oracleReq.ChatRequest.APIFormat)
+
 	return oracleReq
 }
 
@@ -105,16 +125,27 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 // 3. Generates OpenAI-compatible metadata (ID, timestamps, etc.)
 // 4. Handles edge cases and provides sensible defaults
 func (t *Transformer) ToOpenAIResponse(oracleResp types.OracleCloudResponse, originalModel string) types.ChatCompletionResponse {
+	fmt.Printf("Transform: Starting transformation from OCI to OpenAI response format\n")
+	fmt.Printf("Transform: OCI response text: %s\n", oracleResp.ChatResponse.Text)
+	fmt.Printf("Transform: OCI finish reason: %s\n", oracleResp.ChatResponse.FinishReason)
+	fmt.Printf("Transform: OCI model ID: %s\n", oracleResp.ModelID)
+	fmt.Printf("Transform: Original model name: %s\n", originalModel)
+
 	// Generate a unique ID for the completion
 	id := generateCompletionID()
+	fmt.Printf("Transform: Generated completion ID: %s\n", id)
 
 	// Map finish reason from OCI to OpenAI format
 	finishReason := mapFinishReason(oracleResp.ChatResponse.FinishReason)
+	fmt.Printf("Transform: Mapped finish reason: %s -> %s\n", oracleResp.ChatResponse.FinishReason, finishReason)
 
 	// Handle empty response text
 	responseText := oracleResp.ChatResponse.Text
 	if responseText == "" {
 		responseText = "" // Keep empty if no text provided by OCI
+		fmt.Printf("Transform: Response text is empty\n")
+	} else {
+		fmt.Printf("Transform: Response text length: %d characters\n", len(responseText))
 	}
 
 	// Create the assistant's response message
@@ -122,6 +153,7 @@ func (t *Transformer) ToOpenAIResponse(oracleResp types.OracleCloudResponse, ori
 		Role:    "assistant",
 		Content: responseText,
 	}
+	fmt.Printf("Transform: Created assistant message with role: %s\n", assistantMessage.Role)
 
 	// Create the choice object
 	choice := types.ChatCompletionChoice{
@@ -129,6 +161,7 @@ func (t *Transformer) ToOpenAIResponse(oracleResp types.OracleCloudResponse, ori
 		Message:      assistantMessage,
 		FinishReason: finishReason,
 	}
+	fmt.Printf("Transform: Created choice object with index: %d, finish_reason: %s\n", choice.Index, choice.FinishReason)
 
 	// Map usage statistics with fallback values
 	usage := types.ChatCompletionUsage{
@@ -137,19 +170,27 @@ func (t *Transformer) ToOpenAIResponse(oracleResp types.OracleCloudResponse, ori
 		TotalTokens:      oracleResp.ChatResponse.Usage.TotalTokens,
 	}
 
+	fmt.Printf("Transform: Original usage stats - Prompt: %d, Completion: %d, Total: %d\n",
+		usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens)
+
 	// Ensure total tokens is calculated correctly if missing
 	if usage.TotalTokens == 0 && (usage.PromptTokens > 0 || usage.CompletionTokens > 0) {
 		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+		fmt.Printf("Transform: Calculated total tokens: %d\n", usage.TotalTokens)
 	}
 
 	// Ensure we have a valid model name
 	model := originalModel
 	if model == "" {
 		model = oracleResp.ModelID // Fallback to OCI model ID
+		fmt.Printf("Transform: Using OCI model ID as fallback: %s\n", model)
 	}
 	if model == "" {
 		model = "unknown" // Final fallback
+		fmt.Printf("Transform: Using 'unknown' as final fallback model name\n")
 	}
+
+	fmt.Printf("Transform: Final model name: %s\n", model)
 
 	// Create the OpenAI response
 	openAIResp := types.ChatCompletionResponse{
@@ -160,6 +201,11 @@ func (t *Transformer) ToOpenAIResponse(oracleResp types.OracleCloudResponse, ori
 		Choices: []types.ChatCompletionChoice{choice},
 		Usage:   usage,
 	}
+
+	fmt.Printf("Transform: OpenAI response transformation completed successfully\n")
+	fmt.Printf("Transform: Response ID: %s, Object: %s, Model: %s\n", openAIResp.ID, openAIResp.Object, openAIResp.Model)
+	fmt.Printf("Transform: Final usage stats - Prompt: %d, Completion: %d, Total: %d\n",
+		openAIResp.Usage.PromptTokens, openAIResp.Usage.CompletionTokens, openAIResp.Usage.TotalTokens)
 
 	return openAIResp
 }

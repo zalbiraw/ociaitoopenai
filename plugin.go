@@ -198,6 +198,9 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	req.Header.Del("X-Forwarded-Host")
 	req.Header.Del("X-Forwarded-Server")
 	req.Header.Del("X-Real-Ip")
+	
+	// Set Host header to match working request
+	req.Host = "localhost:8080"
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)

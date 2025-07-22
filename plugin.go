@@ -188,11 +188,9 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	req.URL.Path = "/20231130/models"
 
 	// Add query parameters
-	q := url.Values{}
-	q.Add("compartmentId", p.config.CompartmentID)
-	q.Add("capability", "CHAT")
-	req.URL.RawQuery = q.Encode()
+	req.URL.RawQuery = "compartmentId=" + url.QueryEscape(p.config.CompartmentID) + "&capability=CHAT"
 	req.RequestURI = ""
+	req.Header.Set("Content-Type", "application/json")
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)

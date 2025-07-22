@@ -224,28 +224,44 @@ type OpenAIModelsResponse struct {
 	Data   []OpenAIModel `json:"data"`
 }
 
+// CompatibleDedicatedAiClusterShape represents a shape configuration for dedicated AI clusters.
+type CompatibleDedicatedAiClusterShape struct {
+	IsDefault bool   `json:"isDefault"`
+	Name      string `json:"name"`
+	QuotaUnit int    `json:"quotaUnit"`
+}
+
 // OCIModel represents a model from OCI GenAI.
 type OCIModel struct {
-	ID                  string   `json:"id"`
-	DisplayName         string   `json:"displayName"`
-	Vendor              string   `json:"vendor"`
-	Version             string   `json:"version"`
-	Capabilities        []string `json:"capabilities"`
-	LifecycleState      string   `json:"lifecycleState"`
-	TimeCreated         string   `json:"timeCreated"`
-	Type                string   `json:"type"`
-	IsLongTermSupported bool     `json:"isLongTermSupported"`
-	TimeDeprecated      string   `json:"timeDeprecated"`
-	BaseModelID         string   `json:"baseModelId"`
-	MinTotalTokens      int      `json:"minTotalTokens"`
-	MaxTotalTokens      int      `json:"maxTotalTokens"`
-	DefaultTotalTokens  int      `json:"defaultTotalTokens"`
-	MinOutputTokens     int      `json:"minOutputTokens"`
-	MaxOutputTokens     int      `json:"maxOutputTokens"`
-	DefaultOutputTokens int      `json:"defaultOutputTokens"`
+	BaseModelID                        *string                              `json:"baseModelId"`
+	Capabilities                       []string                             `json:"capabilities"`
+	CompartmentID                      *string                              `json:"compartmentId"`
+	CompatibleDedicatedAiClusterShapes []CompatibleDedicatedAiClusterShape `json:"compatibleDedicatedAiClusterShapes"`
+	DefinedTags                        map[string]interface{}               `json:"definedTags"`
+	DisplayName                        string                               `json:"displayName"`
+	FineTuneDetails                    interface{}                          `json:"fineTuneDetails"`
+	FreeformTags                       map[string]interface{}               `json:"freeformTags"`
+	ID                                 string                               `json:"id"`
+	IsImageTextToTextSupported         bool                                 `json:"isImageTextToTextSupported"`
+	IsImportModel                      bool                                 `json:"isImportModel"`
+	IsLongTermSupported                bool                                 `json:"isLongTermSupported"`
+	LifecycleDetails                   string                               `json:"lifecycleDetails"`
+	LifecycleState                     string                               `json:"lifecycleState"`
+	ModelMetrics                       interface{}                          `json:"modelMetrics"`
+	ReferenceModelID                   *string                              `json:"referenceModelId"`
+	SystemTags                         map[string]interface{}               `json:"systemTags"`
+	TimeCreated                        string                               `json:"timeCreated"`
+	TimeDedicatedRetired               *string                              `json:"timeDedicatedRetired"`
+	TimeDeprecated                     *string                              `json:"timeDeprecated"`
+	TimeOnDemandRetired                *string                              `json:"timeOnDemandRetired"`
+	Type                               string                               `json:"type"`
+	Vendor                             string                               `json:"vendor"`
+	Version                            string                               `json:"version"`
 }
 
 // OCIModelsResponse represents the response from OCI models API.
 type OCIModelsResponse struct {
-	Models []OCIModel `json:"models"`
+	Data struct {
+		Items []OCIModel `json:"items"`
+	} `json:"data"`
 }

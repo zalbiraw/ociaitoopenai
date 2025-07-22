@@ -100,12 +100,6 @@ func New(ctx context.Context, next http.Handler, cfg *config.Config, name string
 func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	log.Printf("[%s] Processing incoming request: %s %s", p.name, req.Method, req.URL.String())
 
-	// Only process POST requests to /chat/completions (OpenAI endpoint)
-	if !p.shouldProcessRequest(req) {
-		p.next.ServeHTTP(rw, req)
-		return
-	}
-
 	// Handle different request types
 	if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/models") {
 		// Handle models endpoint
@@ -114,46 +108,32 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 		}
 		return
+	} else if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions") {
+		originalModel, err := p.processOpenAIRequest(rw, req)
+		if err != nil {
+			log.Printf("[%s] ERROR: Failed to process OpenAI request: %v", p.name, err)
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("[%s] OpenAI request transformed successfully, original model: %s", p.name, originalModel)
+
+		// Create a response writer wrapper to capture the response
+		wrappedWriter := newResponseWriter(rw)
+
+		// Forward to next handler with wrapped writer
+		p.next.ServeHTTP(wrappedWriter, req)
+
+		log.Printf("[%s] Received response from next handler, status: %d", p.name, wrappedWriter.statusCode)
+
+		// Transform the response back to OpenAI format
+		if err := p.processResponse(rw, wrappedWriter, originalModel); err != nil {
+			log.Printf("[%s] ERROR: Failed to transform response: %v", p.name, err)
+			// If transformation fails, write the original response
+			rw.WriteHeader(wrappedWriter.statusCode)
+			_, _ = rw.Write(wrappedWriter.body.Bytes())
+		}
 	}
-
-	// Handle chat completions endpoint
-	originalModel, err := p.processOpenAIRequest(rw, req)
-	if err != nil {
-		log.Printf("[%s] ERROR: Failed to process OpenAI request: %v", p.name, err)
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("[%s] OpenAI request transformed successfully, original model: %s", p.name, originalModel)
-
-	// Create a response writer wrapper to capture the response
-	wrappedWriter := newResponseWriter(rw)
-
-	// Forward to next handler with wrapped writer
-	p.next.ServeHTTP(wrappedWriter, req)
-
-	log.Printf("[%s] Received response from next handler, status: %d", p.name, wrappedWriter.statusCode)
-
-	// Transform the response back to OpenAI format
-	if err := p.processResponse(rw, wrappedWriter, originalModel); err != nil {
-		log.Printf("[%s] ERROR: Failed to transform response: %v", p.name, err)
-		// If transformation fails, write the original response
-		rw.WriteHeader(wrappedWriter.statusCode)
-		_, _ = rw.Write(wrappedWriter.body.Bytes())
-	}
-}
-
-// shouldProcessRequest determines if a request should be processed by this plugin.
-func (p *Proxy) shouldProcessRequest(req *http.Request) bool {
-	// Handle POST /chat/completions (chat completions)
-	if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions") {
-		return true
-	}
-	// Handle GET /models (models list)
-	if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/models") {
-		return true
-	}
-	return false
 }
 
 // processOpenAIRequest handles the transformation of OpenAI requests to OCI GenAI format.
@@ -192,18 +172,10 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 	req.ContentLength = int64(len(ociBody))
 
 	// Update the request to point to the OCI GenAI endpoint
-	originalURL := req.URL.String()
-	req.URL.Scheme = "https"
 	req.URL.Path = "/20231130/actions/chat"
-	req.URL.RawQuery = "" // Clear any query parameters
-	req.RequestURI = ""   // Clear RequestURI - not allowed in client requests
-
-	log.Printf("[%s] Request URL transformed: %s -> %s", p.name, originalURL, req.URL.String())
-
-	// Set Content-Type header if not already set
-	if req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
+	req.URL.RawQuery = ""
+	req.RequestURI = ""
+	req.Header.Set("Content-Type", "application/json")
 
 	return openAIReq.Model, nil
 }
@@ -211,22 +183,11 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 // processModelsRequest handles the transformation of models requests.
 func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) error {
 	log.Printf("[%s] Processing models request", p.name)
-	// Update URL to OCI models endpoint
-	req.URL.Scheme = "https"
-	req.URL.Path = "/20231130/models"
 
-	// Pass through existing query parameters and only default capability=CHAT
-	query := req.URL.Query()
-	if !query.Has("capability") {
-		query.Set("capability", "CHAT")
-	}
-	query.Set("compartmentId", p.config.CompartmentID)
-	req.URL.RawQuery = query.Encode()
+	req.URL.Path = "/20231130/models"
+	req.URL.RawQuery = ""
 	req.RequestURI = ""
-	
-	log.Printf("[%s] Models request URL: %s", p.name, req.URL.String())
-	log.Printf("[%s] Models request query: %s", p.name, req.URL.RawQuery)
-	log.Printf("[%s] CompartmentID: %s", p.name, p.config.CompartmentID)
+	req.Header.Set("Content-Type", "application/json")
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)
@@ -234,10 +195,11 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	// Forward to next handler
 	p.next.ServeHTTP(wrappedWriter, req)
 
-	// Transform OCI models response to OpenAI format
-	log.Printf("[%s] Models response status: %d", p.name, wrappedWriter.statusCode)
-	log.Printf("[%s] Models response body: %s", p.name, wrappedWriter.body.String())
-	
+	// Return the raw OCI response without transformation for debugging
+	rw.WriteHeader(wrappedWriter.statusCode)
+	_, _ = rw.Write(wrappedWriter.body.Bytes())
+
+	/* COMMENTED OUT FOR DEBUGGING - REMOVE COMMENTS TO RE-ENABLE TRANSFORMATION
 	if wrappedWriter.statusCode != http.StatusOK {
 		log.Printf("[%s] Non-OK status, returning original response", p.name)
 		rw.WriteHeader(wrappedWriter.statusCode)
@@ -266,6 +228,7 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	rw.Header().Set("Content-Length", fmt.Sprintf("%d", len(openAIBody)))
 	rw.WriteHeader(http.StatusOK)
 	_, _ = rw.Write(openAIBody)
+	*/
 
 	return nil
 }

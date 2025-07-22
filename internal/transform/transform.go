@@ -197,17 +197,8 @@ func mapFinishReason(oracleReason string) string {
 func (t *Transformer) ToOpenAIModelsResponse(ociResp types.OCIModelsResponse) types.OpenAIModelsResponse {
 	var openAIModels []types.OpenAIModel
 
-	for _, ociModel := range ociResp.Models {
-		// Only include models that support CHAT capability
-		supportsChat := false
-		for _, capability := range ociModel.Capabilities {
-			if capability == "CHAT" {
-				supportsChat = true
-				break
-			}
-		}
-
-		if supportsChat && ociModel.LifecycleState == "ACTIVE" {
+	for _, ociModel := range ociResp.Data.Items {
+		if ociModel.LifecycleState == "ACTIVE" {
 			// Parse time created
 			created := time.Now().Unix() // Default to now if parsing fails
 			if parsedTime, err := time.Parse(time.RFC3339, ociModel.TimeCreated); err == nil {

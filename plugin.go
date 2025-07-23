@@ -103,11 +103,9 @@ func New(ctx context.Context, next http.Handler, cfg *config.Config, name string
 func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	log.Printf("[%s] Processing incoming request: %s %s", p.name, req.Method, req.URL.String())
 
-	// Add CORS headers for all requests
-	p.addCORSHeaders(rw, req)
-
 	// Handle preflight requests
 	if req.Method == http.MethodOptions {
+		p.addCORSHeaders(rw, req)
 		rw.WriteHeader(http.StatusOK)
 		return
 	}
@@ -263,6 +261,8 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	// Update content headers
 	rw.Header().Set("Content-Type", "application/json")
 	rw.Header().Set("Content-Length", fmt.Sprintf("%d", len(finalBody)))
+	// Add CORS header for actual response
+	rw.Header().Set("Access-Control-Allow-Origin", "*")
 	rw.WriteHeader(http.StatusOK)
 	_, _ = rw.Write(finalBody)
 
@@ -321,6 +321,8 @@ func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWrite
 	// Update content headers
 	originalWriter.Header().Set("Content-Type", "application/json")
 	originalWriter.Header().Set("Content-Length", fmt.Sprintf("%d", len(finalBody)))
+	// Add CORS header for actual response
+	originalWriter.Header().Set("Access-Control-Allow-Origin", "*")
 
 	// Write the status code
 	originalWriter.WriteHeader(http.StatusOK)

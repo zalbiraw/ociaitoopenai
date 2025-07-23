@@ -101,7 +101,6 @@ func New(ctx context.Context, next http.Handler, cfg *config.Config, name string
 // 4. Forwards the request to the next handler
 // 5. Transforms the response back to OpenAI format
 func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	log.Printf("[%s] Processing incoming request: %s %s", p.name, req.Method, req.URL.String())
 
 	// Handle preflight requests
 	if req.Method == http.MethodOptions {
@@ -126,7 +125,6 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		log.Printf("[%s] OpenAI request transformed successfully, original model: %s", p.name, originalModel)
 
 		// Create a response writer wrapper to capture the response
 		wrappedWriter := newResponseWriter(rw)
@@ -134,7 +132,6 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// Forward to next handler with wrapped writer
 		p.next.ServeHTTP(wrappedWriter, req)
 
-		log.Printf("[%s] Received response from next handler, status: %d", p.name, wrappedWriter.statusCode)
 
 		// Transform the response back to OpenAI format
 		if err := p.processResponse(rw, wrappedWriter, originalModel); err != nil {
@@ -151,7 +148,6 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 // processOpenAIRequest handles the transformation of OpenAI requests to OCI GenAI format.
 func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) (string, error) {
-	log.Printf("[%s] Reading request body", p.name)
 	// Read the request body
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -197,7 +193,6 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 
 // processModelsRequest handles the transformation of models requests.
 func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) error {
-	log.Printf("[%s] Processing models request", p.name)
 
 	req.RequestURI = ""
 	req.URL.Scheme = "https"
@@ -213,7 +208,6 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	p.next.ServeHTTP(wrappedWriter, req)
 
 	if wrappedWriter.statusCode != http.StatusOK {
-		log.Printf("[%s] Non-OK status, returning original response", p.name)
 		rw.WriteHeader(wrappedWriter.statusCode)
 		_, _ = rw.Write(wrappedWriter.body.Bytes())
 		return nil
@@ -271,7 +265,6 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 
 // processResponse handles the transformation of responses from OCI GenAI back to OpenAI format.
 func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWriter *responseWriter, originalModel string) error {
-	log.Printf("[%s] Processing response, status code: %d", p.name, wrappedWriter.statusCode)
 
 	// Only transform successful responses
 	if wrappedWriter.statusCode != http.StatusOK {
@@ -363,9 +356,7 @@ func (p *Proxy) compressResponse(body []byte, originalHeaders http.Header) ([]by
 			return nil, fmt.Errorf("failed to close gzip writer: %w", err)
 		}
 
-		compressed := buf.Bytes()
-		log.Printf("[%s] Compressed response with gzip from %d to %d bytes", p.name, len(body), len(compressed))
-		return compressed, nil
+		return buf.Bytes(), nil
 
 	case "deflate":
 		var buf bytes.Buffer
@@ -382,9 +373,7 @@ func (p *Proxy) compressResponse(body []byte, originalHeaders http.Header) ([]by
 			return nil, fmt.Errorf("failed to close deflate writer: %w", err)
 		}
 
-		compressed := buf.Bytes()
-		log.Printf("[%s] Compressed response with deflate from %d to %d bytes", p.name, len(body), len(compressed))
-		return compressed, nil
+		return buf.Bytes(), nil
 
 	default:
 		log.Printf("[%s] Unknown Content-Encoding: %s, returning body uncompressed", p.name, contentEncoding)
@@ -416,7 +405,6 @@ func (p *Proxy) decompressResponse(body []byte, headers http.Header) ([]byte, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress gzip response: %w", err)
 		}
-		log.Printf("[%s] Decompressed gzip response from %d to %d bytes", p.name, len(body), len(decompressed))
 		return decompressed, nil
 
 	case "deflate":
@@ -427,7 +415,6 @@ func (p *Proxy) decompressResponse(body []byte, headers http.Header) ([]byte, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress deflate response: %w", err)
 		}
-		log.Printf("[%s] Decompressed deflate response from %d to %d bytes", p.name, len(body), len(decompressed))
 		return decompressed, nil
 
 	default:

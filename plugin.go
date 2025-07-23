@@ -271,10 +271,18 @@ func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWrite
 		return nil
 	}
 
+	// Get response body, handling compression
+	responseBody, err := p.decompressResponse(wrappedWriter.body.Bytes(), wrappedWriter.Header())
+	if err != nil {
+		log.Printf("[%s] ERROR: Failed to decompress response: %v", p.name, err)
+		return fmt.Errorf("failed to decompress response: %w", err)
+	}
+
 	// Parse the OCI GenAI response
 	var ociResp types.OracleCloudResponse
-	if err := json.Unmarshal(wrappedWriter.body.Bytes(), &ociResp); err != nil {
+	if err := json.Unmarshal(responseBody, &ociResp); err != nil {
 		log.Printf("[%s] Failed to parse OCI response as JSON: %v", p.name, err)
+		log.Printf("[%s] Response body: %s", p.name, string(responseBody))
 		return fmt.Errorf("failed to parse OCI GenAI response: %w", err)
 	}
 
@@ -287,15 +295,29 @@ func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWrite
 		return fmt.Errorf("failed to marshal OpenAI response: %w", err)
 	}
 
-	// Set proper headers for the transformed response
+	// Compress response if original was compressed
+	finalBody, err := p.compressResponse(openAIBody, wrappedWriter.Header())
+	if err != nil {
+		log.Printf("[%s] ERROR: Failed to compress response: %v", p.name, err)
+		return fmt.Errorf("failed to compress response: %w", err)
+	}
+
+	// Copy headers from original response
+	for key, values := range wrappedWriter.Header() {
+		for _, value := range values {
+			originalWriter.Header().Set(key, value)
+		}
+	}
+
+	// Update content headers
 	originalWriter.Header().Set("Content-Type", "application/json")
-	originalWriter.Header().Set("Content-Length", fmt.Sprintf("%d", len(openAIBody)))
+	originalWriter.Header().Set("Content-Length", fmt.Sprintf("%d", len(finalBody)))
 
 	// Write the status code
 	originalWriter.WriteHeader(http.StatusOK)
 
 	// Write the transformed response
-	_, _ = originalWriter.Write(openAIBody)
+	_, _ = originalWriter.Write(finalBody)
 
 	return nil
 }

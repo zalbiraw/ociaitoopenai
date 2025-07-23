@@ -13,6 +13,8 @@ package ociaitoopenai
 
 import (
 	"bytes"
+	"compress/flate"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -210,10 +212,18 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 		return nil
 	}
 
+	// Get response body, handling compression
+	responseBody, err := p.decompressResponse(wrappedWriter.body.Bytes(), wrappedWriter.Header())
+	if err != nil {
+		log.Printf("[%s] ERROR: Failed to decompress response: %v", p.name, err)
+		return fmt.Errorf("failed to decompress response: %w", err)
+	}
+
 	// Parse OCI models response
 	var ociResp types.OCIModelsResponse
-	if err := json.Unmarshal(wrappedWriter.body.Bytes(), &ociResp); err != nil {
+	if err := json.Unmarshal(responseBody, &ociResp); err != nil {
 		log.Printf("[%s] ERROR: Failed to parse OCI models response: %v", p.name, err)
+		log.Printf("[%s] Response body: %s", p.name, string(responseBody))
 		return fmt.Errorf("failed to parse OCI models response: %w", err)
 	}
 
@@ -273,6 +283,50 @@ func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWrite
 	_, _ = originalWriter.Write(openAIBody)
 
 	return nil
+}
+
+// decompressResponse handles decompression of gzip or deflate compressed responses
+func (p *Proxy) decompressResponse(body []byte, headers http.Header) ([]byte, error) {
+	contentEncoding := headers.Get("Content-Encoding")
+	
+	// Only decompress if Content-Encoding header indicates compression
+	if contentEncoding == "" {
+		return body, nil
+	}
+	
+	switch contentEncoding {
+	case "gzip":
+		if len(body) < 2 {
+			return body, nil
+		}
+		gzipReader, err := gzip.NewReader(bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+		}
+		defer gzipReader.Close()
+		
+		decompressed, err := io.ReadAll(gzipReader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress gzip response: %w", err)
+		}
+		log.Printf("[%s] Decompressed gzip response from %d to %d bytes", p.name, len(body), len(decompressed))
+		return decompressed, nil
+		
+	case "deflate":
+		deflateReader := flate.NewReader(bytes.NewReader(body))
+		defer deflateReader.Close()
+		
+		decompressed, err := io.ReadAll(deflateReader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress deflate response: %w", err)
+		}
+		log.Printf("[%s] Decompressed deflate response from %d to %d bytes", p.name, len(body), len(decompressed))
+		return decompressed, nil
+		
+	default:
+		log.Printf("[%s] Unknown Content-Encoding: %s, returning body as-is", p.name, contentEncoding)
+		return body, nil
+	}
 }
 
 // CreateConfig creates the default plugin configuration.

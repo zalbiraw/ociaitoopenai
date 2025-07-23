@@ -199,11 +199,11 @@ func (t *Transformer) ToOpenAIModelsResponse(ociResp types.OCIModelsResponse) ty
 
 	// Allowed models list
 	allowedModels := map[string]bool{
-		"cohere.command-latest":          true,
-		"cohere.command-plus-latest":     true,
-		"cohere.command-a-03-2025":       true,
-		"cohere.command-r-08-2024":       true,
-		"cohere.command-r-plus-08-2024":  true,
+		"cohere.command-latest":         true,
+		"cohere.command-plus-latest":    true,
+		"cohere.command-a-03-2025":      true,
+		"cohere.command-r-08-2024":      true,
+		"cohere.command-r-plus-08-2024": true,
 	}
 
 	for _, ociModel := range ociResp.Items {

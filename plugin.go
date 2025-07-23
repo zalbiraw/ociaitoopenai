@@ -259,7 +259,7 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 			rw.Header().Set(key, value)
 		}
 	}
-	
+
 	// Update content headers
 	rw.Header().Set("Content-Type", "application/json")
 	rw.Header().Set("Content-Length", fmt.Sprintf("%d", len(finalBody)))
@@ -342,48 +342,48 @@ func (p *Proxy) addCORSHeaders(rw http.ResponseWriter, req *http.Request) {
 // compressResponse compresses the response body if the original response was compressed
 func (p *Proxy) compressResponse(body []byte, originalHeaders http.Header) ([]byte, error) {
 	contentEncoding := originalHeaders.Get("Content-Encoding")
-	
+
 	// Only compress if original response was compressed
 	if contentEncoding == "" {
 		return body, nil
 	}
-	
+
 	switch contentEncoding {
 	case "gzip":
 		var buf bytes.Buffer
 		gzipWriter := gzip.NewWriter(&buf)
-		
+
 		if _, err := gzipWriter.Write(body); err != nil {
 			return nil, fmt.Errorf("failed to write gzip compressed data: %w", err)
 		}
-		
+
 		if err := gzipWriter.Close(); err != nil {
 			return nil, fmt.Errorf("failed to close gzip writer: %w", err)
 		}
-		
+
 		compressed := buf.Bytes()
 		log.Printf("[%s] Compressed response with gzip from %d to %d bytes", p.name, len(body), len(compressed))
 		return compressed, nil
-		
+
 	case "deflate":
 		var buf bytes.Buffer
 		deflateWriter, err := flate.NewWriter(&buf, flate.DefaultCompression)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create deflate writer: %w", err)
 		}
-		
+
 		if _, err := deflateWriter.Write(body); err != nil {
 			return nil, fmt.Errorf("failed to write deflate compressed data: %w", err)
 		}
-		
+
 		if err := deflateWriter.Close(); err != nil {
 			return nil, fmt.Errorf("failed to close deflate writer: %w", err)
 		}
-		
+
 		compressed := buf.Bytes()
 		log.Printf("[%s] Compressed response with deflate from %d to %d bytes", p.name, len(body), len(compressed))
 		return compressed, nil
-		
+
 	default:
 		log.Printf("[%s] Unknown Content-Encoding: %s, returning body uncompressed", p.name, contentEncoding)
 		return body, nil
@@ -393,12 +393,12 @@ func (p *Proxy) compressResponse(body []byte, originalHeaders http.Header) ([]by
 // decompressResponse handles decompression of gzip or deflate compressed responses
 func (p *Proxy) decompressResponse(body []byte, headers http.Header) ([]byte, error) {
 	contentEncoding := headers.Get("Content-Encoding")
-	
+
 	// Only decompress if Content-Encoding header indicates compression
 	if contentEncoding == "" {
 		return body, nil
 	}
-	
+
 	switch contentEncoding {
 	case "gzip":
 		if len(body) < 2 {
@@ -409,25 +409,25 @@ func (p *Proxy) decompressResponse(body []byte, headers http.Header) ([]byte, er
 			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 		}
 		defer gzipReader.Close()
-		
+
 		decompressed, err := io.ReadAll(gzipReader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress gzip response: %w", err)
 		}
 		log.Printf("[%s] Decompressed gzip response from %d to %d bytes", p.name, len(body), len(decompressed))
 		return decompressed, nil
-		
+
 	case "deflate":
 		deflateReader := flate.NewReader(bytes.NewReader(body))
 		defer deflateReader.Close()
-		
+
 		decompressed, err := io.ReadAll(deflateReader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress deflate response: %w", err)
 		}
 		log.Printf("[%s] Decompressed deflate response from %d to %d bytes", p.name, len(body), len(decompressed))
 		return decompressed, nil
-		
+
 	default:
 		log.Printf("[%s] Unknown Content-Encoding: %s, returning body as-is", p.name, contentEncoding)
 		return body, nil

@@ -230,17 +230,32 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	// Transform to OpenAI format
 	openAIResp := p.transformer.ToOpenAIModelsResponse(ociResp)
 
-	// Marshal and return response
+	// Marshal the response
 	openAIBody, err := json.Marshal(openAIResp)
 	if err != nil {
 		log.Printf("[%s] ERROR: Failed to marshal OpenAI models response: %v", p.name, err)
 		return fmt.Errorf("failed to marshal OpenAI models response: %w", err)
 	}
 
+	// Compress response if original was compressed
+	finalBody, err := p.compressResponse(openAIBody, wrappedWriter.Header())
+	if err != nil {
+		log.Printf("[%s] ERROR: Failed to compress response: %v", p.name, err)
+		return fmt.Errorf("failed to compress response: %w", err)
+	}
+
+	// Copy headers from original response
+	for key, values := range wrappedWriter.Header() {
+		for _, value := range values {
+			rw.Header().Set(key, value)
+		}
+	}
+	
+	// Update content headers
 	rw.Header().Set("Content-Type", "application/json")
-	rw.Header().Set("Content-Length", fmt.Sprintf("%d", len(openAIBody)))
+	rw.Header().Set("Content-Length", fmt.Sprintf("%d", len(finalBody)))
 	rw.WriteHeader(http.StatusOK)
-	_, _ = rw.Write(openAIBody)
+	_, _ = rw.Write(finalBody)
 
 	return nil
 }
@@ -283,6 +298,57 @@ func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWrite
 	_, _ = originalWriter.Write(openAIBody)
 
 	return nil
+}
+
+// compressResponse compresses the response body if the original response was compressed
+func (p *Proxy) compressResponse(body []byte, originalHeaders http.Header) ([]byte, error) {
+	contentEncoding := originalHeaders.Get("Content-Encoding")
+	
+	// Only compress if original response was compressed
+	if contentEncoding == "" {
+		return body, nil
+	}
+	
+	switch contentEncoding {
+	case "gzip":
+		var buf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&buf)
+		
+		if _, err := gzipWriter.Write(body); err != nil {
+			return nil, fmt.Errorf("failed to write gzip compressed data: %w", err)
+		}
+		
+		if err := gzipWriter.Close(); err != nil {
+			return nil, fmt.Errorf("failed to close gzip writer: %w", err)
+		}
+		
+		compressed := buf.Bytes()
+		log.Printf("[%s] Compressed response with gzip from %d to %d bytes", p.name, len(body), len(compressed))
+		return compressed, nil
+		
+	case "deflate":
+		var buf bytes.Buffer
+		deflateWriter, err := flate.NewWriter(&buf, flate.DefaultCompression)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create deflate writer: %w", err)
+		}
+		
+		if _, err := deflateWriter.Write(body); err != nil {
+			return nil, fmt.Errorf("failed to write deflate compressed data: %w", err)
+		}
+		
+		if err := deflateWriter.Close(); err != nil {
+			return nil, fmt.Errorf("failed to close deflate writer: %w", err)
+		}
+		
+		compressed := buf.Bytes()
+		log.Printf("[%s] Compressed response with deflate from %d to %d bytes", p.name, len(body), len(compressed))
+		return compressed, nil
+		
+	default:
+		log.Printf("[%s] Unknown Content-Encoding: %s, returning body uncompressed", p.name, contentEncoding)
+		return body, nil
+	}
 }
 
 // decompressResponse handles decompression of gzip or deflate compressed responses

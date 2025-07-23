@@ -103,6 +103,15 @@ func New(ctx context.Context, next http.Handler, cfg *config.Config, name string
 func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	log.Printf("[%s] Processing incoming request: %s %s", p.name, req.Method, req.URL.String())
 
+	// Add CORS headers for all requests
+	p.addCORSHeaders(rw, req)
+
+	// Handle preflight requests
+	if req.Method == http.MethodOptions {
+		rw.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Handle different request types
 	if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/models") {
 		// Handle models endpoint
@@ -320,6 +329,14 @@ func (p *Proxy) processResponse(originalWriter http.ResponseWriter, wrappedWrite
 	_, _ = originalWriter.Write(finalBody)
 
 	return nil
+}
+
+// addCORSHeaders adds CORS headers to allow cross-origin requests from anywhere
+func (p *Proxy) addCORSHeaders(rw http.ResponseWriter, req *http.Request) {
+	rw.Header().Set("Access-Control-Allow-Origin", "*")
+	rw.Header().Set("Access-Control-Allow-Methods", "*")
+	rw.Header().Set("Access-Control-Allow-Headers", "*")
+	rw.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 }
 
 // compressResponse compresses the response body if the original response was compressed

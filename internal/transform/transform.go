@@ -206,7 +206,7 @@ func (t *Transformer) ToOpenAIModelsResponse(ociResp types.OCIModelsResponse) ty
 			}
 
 			openAIModel := types.OpenAIModel{
-				ID:      ociModel.ID,
+				ID:      ociModel.DisplayName,
 				Object:  "model",
 				Created: created,
 				OwnedBy: ociModel.Vendor,

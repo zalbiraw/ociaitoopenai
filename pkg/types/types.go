@@ -22,16 +22,16 @@ type ChatCompletionRequest struct {
 	MaxTokens int `json:"max_tokens,omitempty"` //nolint:tagliatelle
 
 	// Temperature controls randomness (0.0 = deterministic, 2.0 = very random)
-	Temperature float32 `json:"temperature,omitempty"`
+	Temperature float64 `json:"temperature,omitempty"`
 
 	// TopP controls nucleus sampling
-	TopP float32 `json:"topP,omitempty"`
+	TopP float64 `json:"top_p,omitempty"`
 
 	// FrequencyPenalty reduces repetition of tokens based on their frequency
-	FrequencyPenalty float32 `json:"frequencyPenalty,omitempty"`
+	FrequencyPenalty float64 `json:"frequency_penalty,omitempty"`
 
 	// PresencePenalty reduces repetition of tokens based on their presence
-	PresencePenalty float32 `json:"presencePenalty,omitempty"`
+	PresencePenalty float64 `json:"presence_penalty,omitempty"`
 }
 
 // ServingMode represents the serving configuration for Oracle Cloud GenAI.
@@ -44,45 +44,28 @@ type ServingMode struct {
 	ServingType string `json:"servingType"`
 }
 
-// StreamOptions configures streaming behavior for chat requests.
-// This controls whether the response should include usage statistics.
-type StreamOptions struct {
-	// IsIncludeUsage determines if usage statistics should be included in streaming responses
-	IsIncludeUsage bool `json:"isIncludeUsage"`
-}
-
 // ChatRequest represents a chat completion request to Oracle Cloud GenAI.
 // It contains all the parameters needed to generate a response from the AI model.
 type ChatRequest struct {
+	// For GENERIC format: messages array
+	Messages []interface{} `json:"messages,omitempty"`
 	// MaxTokens is the maximum number of tokens to generate in the response
 	MaxTokens int `json:"maxTokens"`
 
 	// Temperature controls randomness in the response (0.0 = deterministic, 1.0 = very random)
 	Temperature float64 `json:"temperature"`
 
-	// FrequencyPenalty reduces repetition of tokens based on their frequency in the text
-	FrequencyPenalty float64 `json:"frequencyPenalty"`
-
-	// PresencePenalty reduces repetition of tokens based on whether they appear in the text
-	PresencePenalty float64 `json:"presencePenalty"`
-
 	// TopP controls nucleus sampling (0.0 = most focused, 1.0 = least focused)
 	TopP float64 `json:"topP"`
-
-	// TopK limits the number of highest probability tokens to consider
-	TopK int `json:"topK"`
 
 	// IsStream determines if the response should be streamed
 	IsStream bool `json:"isStream"`
 
-	// StreamOptions configures streaming behavior
-	StreamOptions StreamOptions `json:"streamOptions"`
-
 	// ChatHistory contains previous messages in the conversation
-	ChatHistory []interface{} `json:"chatHistory"`
+	ChatHistory []interface{} `json:"chatHistory,omitempty"`
 
 	// Message is the current user message to process
-	Message string `json:"message"`
+	Message string `json:"message,omitempty"`
 
 	// APIFormat specifies the API format to use (e.g., "COHERE")
 	APIFormat string `json:"apiFormat"`

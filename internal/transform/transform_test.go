@@ -135,14 +135,6 @@ func TestToOracleCloudRequest_OpenAIOverrides(t *testing.T) {
 	if abs(result.ChatRequest.TopP-0.9) > 0.0001 {
 		t.Errorf("expected topP 0.9, got %f", result.ChatRequest.TopP)
 	}
-
-	if abs(result.ChatRequest.FrequencyPenalty-0.2) > 0.0001 {
-		t.Errorf("expected frequencyPenalty 0.2, got %f", result.ChatRequest.FrequencyPenalty)
-	}
-
-	if abs(result.ChatRequest.PresencePenalty-0.1) > 0.0001 {
-		t.Errorf("expected presencePenalty 0.1, got %f", result.ChatRequest.PresencePenalty)
-	}
 }
 
 func TestToOracleCloudRequest_StreamingDefaults(t *testing.T) {
@@ -162,10 +154,6 @@ func TestToOracleCloudRequest_StreamingDefaults(t *testing.T) {
 	// Verify streaming defaults
 	if result.ChatRequest.IsStream != false {
 		t.Error("expected IsStream to be false")
-	}
-
-	if result.ChatRequest.StreamOptions.IsIncludeUsage != false {
-		t.Error("expected IsIncludeUsage to be false")
 	}
 
 	// Verify chat history is empty

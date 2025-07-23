@@ -125,13 +125,11 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-
 		// Create a response writer wrapper to capture the response
 		wrappedWriter := newResponseWriter(rw)
 
 		// Forward to next handler with wrapped writer
 		p.next.ServeHTTP(wrappedWriter, req)
-
 
 		// Transform the response back to OpenAI format
 		if err := p.processResponse(rw, wrappedWriter, originalModel); err != nil {
@@ -166,6 +164,8 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 		http.Error(rw, "Failed to parse OpenAI request", http.StatusBadRequest)
 		return "", unmarshalErr
 	}
+
+	openAIReq.MaxTokens = 1000
 
 	// Transform to OCI GenAI format
 	ociReq := p.transformer.ToOracleCloudRequest(openAIReq)

@@ -203,8 +203,8 @@ func TestServeHTTP_ModelsRequest(t *testing.T) {
 		ociResp := types.OCIModelsResponse{
 			Items: []types.OCIModel{
 				{
-					ID:             "cohere.command-r-plus",
-					DisplayName:    "Command R Plus",
+					ID:             "cohere.command-latest",
+					DisplayName:    "cohere.command-latest",
 					Vendor:         "cohere",
 					Capabilities:   []string{"CHAT"},
 					LifecycleState: "ACTIVE",
@@ -247,7 +247,7 @@ func TestServeHTTP_ModelsRequest(t *testing.T) {
 		t.Errorf("expected 1 model, got: %d", len(openAIResp.Data))
 	}
 
-	if openAIResp.Data[0].ID != "cohere.command-r-plus" {
-		t.Errorf("expected model ID cohere.command-r-plus, got: %s", openAIResp.Data[0].ID)
+	if openAIResp.Data[0].ID != "cohere.command-latest" {
+		t.Errorf("expected model ID cohere.command-latest, got: %s", openAIResp.Data[0].ID)
 	}
 }

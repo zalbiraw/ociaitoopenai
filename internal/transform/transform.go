@@ -197,8 +197,17 @@ func mapFinishReason(oracleReason string) string {
 func (t *Transformer) ToOpenAIModelsResponse(ociResp types.OCIModelsResponse) types.OpenAIModelsResponse {
 	var openAIModels []types.OpenAIModel
 
+	// Allowed models list
+	allowedModels := map[string]bool{
+		"cohere.command-latest":          true,
+		"cohere.command-plus-latest":     true,
+		"cohere.command-a-03-2025":       true,
+		"cohere.command-r-08-2024":       true,
+		"cohere.command-r-plus-08-2024":  true,
+	}
+
 	for _, ociModel := range ociResp.Items {
-		if ociModel.LifecycleState == "ACTIVE" {
+		if ociModel.LifecycleState == "ACTIVE" && allowedModels[ociModel.DisplayName] {
 			// Parse time created
 			created := time.Now().Unix() // Default to now if parsing fails
 			if parsedTime, err := time.Parse(time.RFC3339, ociModel.TimeCreated); err == nil {

@@ -233,30 +233,30 @@ type CompatibleDedicatedAiClusterShape struct {
 
 // OCIModel represents a model from OCI GenAI.
 type OCIModel struct {
-	BaseModelID                        *string                              `json:"baseModelId"`
-	Capabilities                       []string                             `json:"capabilities"`
-	CompartmentID                      *string                              `json:"compartmentId"`
+	BaseModelID                        *string                             `json:"baseModelId"`
+	Capabilities                       []string                            `json:"capabilities"`
+	CompartmentID                      *string                             `json:"compartmentId"`
 	CompatibleDedicatedAiClusterShapes []CompatibleDedicatedAiClusterShape `json:"compatibleDedicatedAiClusterShapes"`
-	DefinedTags                        map[string]interface{}               `json:"definedTags"`
-	DisplayName                        string                               `json:"displayName"`
-	FineTuneDetails                    interface{}                          `json:"fineTuneDetails"`
-	FreeformTags                       map[string]interface{}               `json:"freeformTags"`
-	ID                                 string                               `json:"id"`
-	IsImageTextToTextSupported         bool                                 `json:"isImageTextToTextSupported"`
-	IsImportModel                      bool                                 `json:"isImportModel"`
-	IsLongTermSupported                bool                                 `json:"isLongTermSupported"`
-	LifecycleDetails                   string                               `json:"lifecycleDetails"`
-	LifecycleState                     string                               `json:"lifecycleState"`
-	ModelMetrics                       interface{}                          `json:"modelMetrics"`
-	ReferenceModelID                   *string                              `json:"referenceModelId"`
-	SystemTags                         map[string]interface{}               `json:"systemTags"`
-	TimeCreated                        string                               `json:"timeCreated"`
-	TimeDedicatedRetired               *string                              `json:"timeDedicatedRetired"`
-	TimeDeprecated                     *string                              `json:"timeDeprecated"`
-	TimeOnDemandRetired                *string                              `json:"timeOnDemandRetired"`
-	Type                               string                               `json:"type"`
-	Vendor                             string                               `json:"vendor"`
-	Version                            string                               `json:"version"`
+	DefinedTags                        map[string]interface{}              `json:"definedTags"`
+	DisplayName                        string                              `json:"displayName"`
+	FineTuneDetails                    interface{}                         `json:"fineTuneDetails"`
+	FreeformTags                       map[string]interface{}              `json:"freeformTags"`
+	ID                                 string                              `json:"id"`
+	IsImageTextToTextSupported         bool                                `json:"isImageTextToTextSupported"`
+	IsImportModel                      bool                                `json:"isImportModel"`
+	IsLongTermSupported                bool                                `json:"isLongTermSupported"`
+	LifecycleDetails                   string                              `json:"lifecycleDetails"`
+	LifecycleState                     string                              `json:"lifecycleState"`
+	ModelMetrics                       interface{}                         `json:"modelMetrics"`
+	ReferenceModelID                   *string                             `json:"referenceModelId"`
+	SystemTags                         map[string]interface{}              `json:"systemTags"`
+	TimeCreated                        string                              `json:"timeCreated"`
+	TimeDedicatedRetired               *string                             `json:"timeDedicatedRetired"`
+	TimeDeprecated                     *string                             `json:"timeDeprecated"`
+	TimeOnDemandRetired                *string                             `json:"timeOnDemandRetired"`
+	Type                               string                              `json:"type"`
+	Vendor                             string                              `json:"vendor"`
+	Version                            string                              `json:"version"`
 }
 
 // OCIModelsResponse represents the response from OCI models API.

@@ -134,6 +134,9 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			rw.WriteHeader(wrappedWriter.statusCode)
 			_, _ = rw.Write(wrappedWriter.body.Bytes())
 		}
+	} else {
+		// Pass through non-matching requests to the next handler
+		p.next.ServeHTTP(rw, req)
 	}
 }
 
@@ -173,9 +176,11 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 	req.ContentLength = int64(len(ociBody))
 
 	// Update the request to point to the OCI GenAI endpoint
+	req.RequestURI = ""
+	req.URL.Scheme = "https"
+	req.URL.Host = fmt.Sprintf("generativeai.%s.oci.oraclecloud.com", p.config.Region)
 	req.URL.Path = "/20231130/actions/chat"
 	req.URL.RawQuery = ""
-	req.RequestURI = ""
 	req.Header.Set("Content-Type", "application/json")
 
 	return openAIReq.Model, nil
@@ -185,22 +190,12 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) error {
 	log.Printf("[%s] Processing models request", p.name)
 
-	req.URL.Path = "/20231130/models"
-
-	// Add query parameters
-	req.URL.RawQuery = "compartmentId=" + url.QueryEscape(p.config.CompartmentID) + "&capability=CHAT"
 	req.RequestURI = ""
+	req.URL.Scheme = "https"
+	req.URL.Host = fmt.Sprintf("generativeai.%s.oci.oraclecloud.com", p.config.Region)
+	req.URL.Path = "/20231130/models"
+	req.URL.RawQuery = "compartmentId=" + url.QueryEscape(p.config.CompartmentID) + "&capability=CHAT"
 	req.Header.Set("Content-Type", "application/json")
-	
-	// Remove X-Forwarded headers
-	req.Header.Del("X-Forwarded-Proto")
-	req.Header.Del("X-Forwarded-Port")
-	req.Header.Del("X-Forwarded-Host")
-	req.Header.Del("X-Forwarded-Server")
-	req.Header.Del("X-Real-Ip")
-	
-	// Set Host header to match working request
-	req.Host = "localhost:8080"
 
 	// Create a response writer wrapper to capture the response
 	wrappedWriter := newResponseWriter(rw)
@@ -208,11 +203,6 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	// Forward to next handler
 	p.next.ServeHTTP(wrappedWriter, req)
 
-	// Return the raw OCI response without transformation for debugging
-	rw.WriteHeader(wrappedWriter.statusCode)
-	_, _ = rw.Write(wrappedWriter.body.Bytes())
-
-	/* COMMENTED OUT FOR DEBUGGING - REMOVE COMMENTS TO RE-ENABLE TRANSFORMATION
 	if wrappedWriter.statusCode != http.StatusOK {
 		log.Printf("[%s] Non-OK status, returning original response", p.name)
 		rw.WriteHeader(wrappedWriter.statusCode)
@@ -241,7 +231,6 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 	rw.Header().Set("Content-Length", fmt.Sprintf("%d", len(openAIBody)))
 	rw.WriteHeader(http.StatusOK)
 	_, _ = rw.Write(openAIBody)
-	*/
 
 	return nil
 }

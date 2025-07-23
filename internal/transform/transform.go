@@ -197,7 +197,7 @@ func mapFinishReason(oracleReason string) string {
 func (t *Transformer) ToOpenAIModelsResponse(ociResp types.OCIModelsResponse) types.OpenAIModelsResponse {
 	var openAIModels []types.OpenAIModel
 
-	for _, ociModel := range ociResp.Data.Items {
+	for _, ociModel := range ociResp.Items {
 		if ociModel.LifecycleState == "ACTIVE" {
 			// Parse time created
 			created := time.Now().Unix() // Default to now if parsing fails

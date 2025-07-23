@@ -201,18 +201,14 @@ func TestServeHTTP_ModelsRequest(t *testing.T) {
 
 		// Send back a mock OCI models response
 		ociResp := types.OCIModelsResponse{
-			Data: struct {
-				Items []types.OCIModel "json:\"items\""
-			}{
-				Items: []types.OCIModel{
-					{
-						ID:             "cohere.command-r-plus",
-						DisplayName:    "Command R Plus",
-						Vendor:         "cohere",
-						Capabilities:   []string{"CHAT"},
-						LifecycleState: "ACTIVE",
-						TimeCreated:    "2023-01-01T00:00:00Z",
-					},
+			Items: []types.OCIModel{
+				{
+					ID:             "cohere.command-r-plus",
+					DisplayName:    "Command R Plus",
+					Vendor:         "cohere",
+					Capabilities:   []string{"CHAT"},
+					LifecycleState: "ACTIVE",
+					TimeCreated:    "2023-01-01T00:00:00Z",
 				},
 			},
 		}

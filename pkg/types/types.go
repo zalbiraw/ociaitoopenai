@@ -261,7 +261,5 @@ type OCIModel struct {
 
 // OCIModelsResponse represents the response from OCI models API.
 type OCIModelsResponse struct {
-	Data struct {
-		Items []OCIModel `json:"items"`
-	} `json:"data"`
+	Items []OCIModel `json:"items"`
 }

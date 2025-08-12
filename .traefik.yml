@@ -1,4 +1,4 @@
-displayName: OCI AI to OpenAI Plugin
+displayName: OCIGenAI
 type: middleware
 import: github.com/zalbiraw/ociaitoopenai
 summary: 'Transform OpenAI API requests to OCI GenAI format'

@@ -103,11 +103,11 @@ func New(ctx context.Context, next http.Handler, cfg *config.Config, name string
 func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// Handle preflight requests
-	if req.Method == http.MethodOptions {
-		p.addCORSHeaders(rw, req)
-		rw.WriteHeader(http.StatusOK)
-		return
-	}
+	// if req.Method == http.MethodOptions {
+	// 	p.addCORSHeaders(rw, req)
+	// 	rw.WriteHeader(http.StatusOK)
+	// 	return
+	// }
 
 	// Handle different request types
 	if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/models") {

@@ -81,10 +81,10 @@ type ChatRequest struct {
 	StreamOptions StreamOptions `json:"streamOptions"`
 
 	// ChatHistory contains previous messages in the conversation
-	ChatHistory []interface{} `json:"chatHistory"`
+	ChatHistory []interface{} `json:"chatHistory,omitempty"`
 
 	// Message is the current user message to process
-	Message string `json:"message"`
+	Message string `json:"message,omitempty"`
 
 	// APIFormat specifies the API format to use (e.g., "COHERE")
 	APIFormat string `json:"apiFormat"`

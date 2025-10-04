@@ -33,10 +33,7 @@ func New(cfg *config.Config) *Transformer {
 // 3. Uses OpenAI request parameters if provided, otherwise falls back to config defaults
 // 4. Constructs the Oracle Cloud request structure with proper serving mode and chat parameters.
 func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest) types.OracleCloudRequest {
-
-	// Handle empty messages array
 	if len(openAIReq.Messages) == 0 {
-		// Return empty request if no messages provided
 		return types.OracleCloudRequest{
 			CompartmentID: t.config.CompartmentID,
 			ServingMode: types.ServingMode{
@@ -52,31 +49,69 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 		}
 	}
 
-	// Build chat history and extract current message
-	var chatHistory []interface{}
-	var currentMessage string
+	isCohere := false
+	if openAIReq.Model != "" && (containsIgnoreCase(openAIReq.Model, "cohere")) {
+		isCohere = true
+	}
 
-	// Process all messages except the last one as chat history
-	for i, msg := range openAIReq.Messages {
-		if i == len(openAIReq.Messages)-1 {
-			// Last message becomes the current message to respond to
-			currentMessage = msg.Content
-		} else {
-			// Add to chat history in OCI format
-			historyEntry := map[string]interface{}{
-				"role":    msg.Role,
-				"content": msg.Content,
+	if isCohere {
+		// COHERE format (legacy): chatHistory/message
+		var chatHistory []interface{}
+		var currentMessage string
+		for i, msg := range openAIReq.Messages {
+			if i == len(openAIReq.Messages)-1 {
+				currentMessage = msg.Content
+			} else {
+				historyEntry := map[string]interface{}{
+					"role":    msg.Role,
+					"message": msg.Content,
+				}
+				chatHistory = append(chatHistory, historyEntry)
 			}
-			chatHistory = append(chatHistory, historyEntry)
+		}
+		return types.OracleCloudRequest{
+			CompartmentID: t.config.CompartmentID,
+			ServingMode: types.ServingMode{
+				ModelID:     openAIReq.Model,
+				ServingType: "ON_DEMAND",
+			},
+			ChatRequest: types.ChatRequest{
+				MaxTokens:        openAIReq.MaxTokens,
+				Temperature:      float64(openAIReq.Temperature),
+				FrequencyPenalty: float64(openAIReq.FrequencyPenalty),
+				PresencePenalty:  float64(openAIReq.PresencePenalty),
+				TopP:             float64(openAIReq.TopP),
+				IsStream:         false,
+				StreamOptions: types.StreamOptions{
+					IsIncludeUsage: false,
+				},
+				ChatHistory: chatHistory,
+				Message:     currentMessage,
+				APIFormat:   "COHERE",
+			},
 		}
 	}
 
-	// Construct the Oracle Cloud request structure
-	oracleReq := types.OracleCloudRequest{
+	// GENERIC format: messages array with nested content
+	var genericMessages []interface{}
+	for _, msg := range openAIReq.Messages {
+		contentArr := []map[string]interface{}{
+			{
+				"type": "TEXT",
+				"text": msg.Content,
+			},
+		}
+		genericMessages = append(genericMessages, map[string]interface{}{
+			"role":    msg.Role,
+			"content": contentArr,
+		})
+	}
+
+	return types.OracleCloudRequest{
 		CompartmentID: t.config.CompartmentID,
 		ServingMode: types.ServingMode{
 			ModelID:     openAIReq.Model,
-			ServingType: "ON_DEMAND", // Standard serving type for OCI GenAI
+			ServingType: "ON_DEMAND",
 		},
 		ChatRequest: types.ChatRequest{
 			MaxTokens:        openAIReq.MaxTokens,
@@ -84,17 +119,18 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 			FrequencyPenalty: float64(openAIReq.FrequencyPenalty),
 			PresencePenalty:  float64(openAIReq.PresencePenalty),
 			TopP:             float64(openAIReq.TopP),
-			IsStream:         false, // Currently not supporting streaming
+			IsStream:         false,
 			StreamOptions: types.StreamOptions{
 				IsIncludeUsage: false,
 			},
-			ChatHistory: chatHistory,
-			Message:     currentMessage,
-			APIFormat:   "COHERE", // Default API format for OCI GenAI
+			APIFormat:   "GENERIC",
+			Messages:    genericMessages,
 		},
 	}
+}
 
-	return oracleReq
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 // ToOpenAIResponse converts an Oracle Cloud GenAI response to OpenAI ChatCompletion format.

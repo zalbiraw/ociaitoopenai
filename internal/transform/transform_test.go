@@ -164,10 +164,6 @@ func TestToOracleCloudRequest_StreamingDefaults(t *testing.T) {
 		t.Error("expected IsStream to be false")
 	}
 
-	if result.ChatRequest.StreamOptions.IsIncludeUsage != false {
-		t.Error("expected IsIncludeUsage to be false")
-	}
-
 	// Verify chat history is empty
 	if len(result.ChatRequest.ChatHistory) != 0 {
 		t.Errorf("expected empty chat history, got %d items", len(result.ChatRequest.ChatHistory))

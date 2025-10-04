@@ -44,13 +44,6 @@ type ServingMode struct {
 	ServingType string `json:"servingType"`
 }
 
-// StreamOptions configures streaming behavior for chat requests.
-// This controls whether the response should include usage statistics.
-type StreamOptions struct {
-	// IsIncludeUsage determines if usage statistics should be included in streaming responses
-	IsIncludeUsage bool `json:"isIncludeUsage"`
-}
-
 // ChatRequest represents a chat completion request to Oracle Cloud GenAI.
 // It contains all the parameters needed to generate a response from the AI model.
 type ChatRequest struct {
@@ -76,9 +69,6 @@ type ChatRequest struct {
 
 	// IsStream determines if the response should be streamed
 	IsStream bool `json:"isStream"`
-
-	// StreamOptions configures streaming behavior
-	StreamOptions StreamOptions `json:"streamOptions"`
 
 	// ChatHistory contains previous messages in the conversation
 	ChatHistory []interface{} `json:"chatHistory,omitempty"`

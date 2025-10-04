@@ -87,9 +87,6 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 				PresencePenalty:  float64(openAIReq.PresencePenalty),
 				TopP:             float64(openAIReq.TopP),
 				IsStream:         false,
-				StreamOptions: types.StreamOptions{
-					IsIncludeUsage: false,
-				},
 				ChatHistory: chatHistory,
 				Message:     currentMessage,
 				APIFormat:   "COHERE",
@@ -129,9 +126,6 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 			PresencePenalty:  float64(openAIReq.PresencePenalty),
 			TopP:             float64(openAIReq.TopP),
 			IsStream:         false,
-			StreamOptions: types.StreamOptions{
-				IsIncludeUsage: false,
-			},
 			APIFormat:   "GENERIC",
 			Messages:    genericMessages,
 		},

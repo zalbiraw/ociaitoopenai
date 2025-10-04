@@ -59,11 +59,15 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 		var chatHistory []interface{}
 		var currentMessage string
 		for i, msg := range openAIReq.Messages {
+			mappedRole := "CHATBOT"
+			if containsIgnoreCase(msg.Role, "user") {
+				mappedRole = "USER"
+			}
 			if i == len(openAIReq.Messages)-1 {
 				currentMessage = msg.Content
 			} else {
 				historyEntry := map[string]interface{}{
-					"role":    msg.Role,
+					"role":    mappedRole,
 					"message": msg.Content,
 				}
 				chatHistory = append(chatHistory, historyEntry)
@@ -95,6 +99,10 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 	// GENERIC format: messages array with nested content
 	var genericMessages []interface{}
 	for _, msg := range openAIReq.Messages {
+		mappedRole := "ASSISTANT"
+		if containsIgnoreCase(msg.Role, "user") {
+			mappedRole = "USER"
+		}
 		contentArr := []map[string]interface{}{
 			{
 				"type": "TEXT",
@@ -102,7 +110,7 @@ func (t *Transformer) ToOracleCloudRequest(openAIReq types.ChatCompletionRequest
 			},
 		}
 		genericMessages = append(genericMessages, map[string]interface{}{
-			"role":    msg.Role,
+			"role":    mappedRole,
 			"content": contentArr,
 		})
 	}

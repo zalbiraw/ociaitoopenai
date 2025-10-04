@@ -193,7 +193,8 @@ func (p *Proxy) processOpenAIRequest(rw http.ResponseWriter, req *http.Request) 
 	log.Printf("[%s] processOpenAIRequest: Setting OCI GenAI endpoint details", p.name)
 	req.RequestURI = ""
 	req.URL.Scheme = "https"
-	req.URL.Host = fmt.Sprintf("generativeai.%s.oci.oraclecloud.com", p.config.Region)
+
+	req.URL.Host = fmt.Sprintf("inference.generativeai.%s.oci.oraclecloud.com", p.config.Region)
 	req.URL.Path = "/20231130/actions/chat"
 	req.URL.RawQuery = ""
 	req.Header.Set("Content-Type", "application/json")
@@ -211,7 +212,7 @@ func (p *Proxy) processModelsRequest(rw http.ResponseWriter, req *http.Request) 
 
 	req.RequestURI = ""
 	req.URL.Scheme = "https"
-	req.URL.Host = fmt.Sprintf("generativeai.%s.oci.oraclecloud.com", p.config.Region)
+	req.URL.Host = fmt.Sprintf("inference.generativeai.%s.oci.oraclecloud.com", p.config.Region)
 	req.URL.Path = "/20231130/models"
 	req.URL.RawQuery = "compartmentId=" + url.QueryEscape(p.config.CompartmentID) + "&capability=CHAT"
 	req.Header.Set("Content-Type", "application/json")

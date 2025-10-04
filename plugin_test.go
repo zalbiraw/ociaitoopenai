@@ -81,7 +81,7 @@ func TestServeHTTP_ChatCompletionRequest(t *testing.T) {
 			t.Errorf("expected path to be transformed to /20231130/actions/chat, got: %s", req.URL.Path)
 		}
 
-		expectedHost := "generativeai.us-ashburn-1.oci.oraclecloud.com"
+		expectedHost := "inference.generativeai.us-ashburn-1.oci.oraclecloud.com"
 		if req.URL.Host != expectedHost {
 			t.Errorf("expected host %s, got: %s", expectedHost, req.URL.Host)
 		}
@@ -185,7 +185,7 @@ func TestServeHTTP_ModelsRequest(t *testing.T) {
 			t.Errorf("expected path to be transformed to /20231130/models, got: %s", req.URL.Path)
 		}
 
-		expectedHost := "generativeai.us-chicago-1.oci.oraclecloud.com"
+		expectedHost := "inference.generativeai.us-chicago-1.oci.oraclecloud.com"
 		if req.URL.Host != expectedHost {
 			t.Errorf("expected host %s, got: %s", expectedHost, req.URL.Host)
 		}

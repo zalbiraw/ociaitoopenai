@@ -193,12 +193,20 @@ func mapFinishReason(oracleReason string) string {
 	}
 }
 
+func shouldFilterModel(ociModelOwner string) bool {
+	if ociModelOwner == "xai" || ociModelOwner == "cohere" || ociModelOwner == "meta" {
+		return true
+	}
+	return false
+}
+
 // ToOpenAIModelsResponse converts an OCI models response to OpenAI models format.
 func (t *Transformer) ToOpenAIModelsResponse(ociResp types.OCIModelsResponse) types.OpenAIModelsResponse {
 	var openAIModels []types.OpenAIModel
 
 	for _, ociModel := range ociResp.Items {
-		if ociModel.LifecycleState == "ACTIVE" {
+		fmt.Printf("ociModel: %+v\n", ociModel)
+		if ociModel.LifecycleState == "ACTIVE" && !shouldFilterModel(ociModel.Vendor) {
 			// Parse time created
 			created := time.Now().Unix() // Default to now if parsing fails
 			if parsedTime, err := time.Parse(time.RFC3339, ociModel.TimeCreated); err == nil {

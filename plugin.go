@@ -129,6 +129,9 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// Forward to next handler with wrapped writer
 		p.next.ServeHTTP(wrappedWriter, req)
 
+		// Print OCI downstream status and result body (snippet)
+		log.Printf("[%s] OCI downstream status: %d", p.name, wrappedWriter.statusCode)
+
 		// Transform the response back to OpenAI format
 		log.Printf("[%s] ServeHTTP: Transforming downstream response", p.name)
 		if err := p.processResponse(rw, wrappedWriter, originalModel); err != nil {

@@ -54,6 +54,8 @@ type StreamOptions struct {
 // ChatRequest represents a chat completion request to Oracle Cloud GenAI.
 // It contains all the parameters needed to generate a response from the AI model.
 type ChatRequest struct {
+	// For GENERIC format: messages array
+	Messages []interface{} `json:"messages,omitempty"`
 	// MaxTokens is the maximum number of tokens to generate in the response
 	MaxTokens int `json:"maxTokens"`
 

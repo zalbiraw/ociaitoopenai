@@ -6,6 +6,7 @@ package transform
 import (
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zalbiraw/ociaitoopenai/internal/config"

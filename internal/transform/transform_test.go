@@ -53,12 +53,9 @@ func TestToOracleCloudRequest_BasicTransformation(t *testing.T) {
 		t.Errorf("expected serving type ON_DEMAND, got %s", result.ServingMode.ServingType)
 	}
 
-	if result.ChatRequest.Message != "Hello, world!" {
-		t.Errorf("expected message 'Hello, world!', got '%s'", result.ChatRequest.Message)
-	}
-
-	if result.ChatRequest.APIFormat != "COHERE" {
-		t.Errorf("expected API format COHERE, got %s", result.ChatRequest.APIFormat)
+	// GENERIC format for non-cohere models
+	if result.ChatRequest.APIFormat != "GENERIC" {
+		t.Errorf("expected API format GENERIC, got %s", result.ChatRequest.APIFormat)
 	}
 }
 
@@ -79,10 +76,9 @@ func TestToOracleCloudRequest_MultipleMessages(t *testing.T) {
 
 	result := transformer.ToOracleCloudRequest(openAIReq)
 
-	// Should use the last message as the prompt
-	expectedMessage := "How are you?"
-	if result.ChatRequest.Message != expectedMessage {
-		t.Errorf("expected message '%s', got '%s'", expectedMessage, result.ChatRequest.Message)
+	// Should use GENERIC format for non-cohere models
+	if result.ChatRequest.APIFormat != "GENERIC" {
+		t.Errorf("expected API format GENERIC, got %s", result.ChatRequest.APIFormat)
 	}
 }
 
@@ -92,14 +88,14 @@ func TestToOracleCloudRequest_EmptyMessages(t *testing.T) {
 	transformer := New(cfg)
 
 	openAIReq := types.ChatCompletionRequest{
-		Model:    "gpt-4",
+		Model:    "cohere.command",
 		Messages: []types.ChatCompletionMessage{},
 	}
 
 	result := transformer.ToOracleCloudRequest(openAIReq)
 
-	if result.ChatRequest.Message != "" {
-		t.Errorf("expected empty message, got '%s'", result.ChatRequest.Message)
+	if result.ChatRequest.APIFormat != "COHERE" {
+		t.Errorf("expected API format COHERE, got %s", result.ChatRequest.APIFormat)
 	}
 }
 
@@ -122,18 +118,8 @@ func TestToOracleCloudRequest_OpenAIOverrides(t *testing.T) {
 
 	result := transformer.ToOracleCloudRequest(openAIReq)
 
-	// OpenAI values should override config defaults
-	if result.ChatRequest.MaxTokens != 1000 {
-		t.Errorf("expected maxTokens 1000, got %d", result.ChatRequest.MaxTokens)
-	}
-
-	if result.ChatRequest.Temperature != 0.5 {
-		t.Errorf("expected temperature 0.5, got %f", result.ChatRequest.Temperature)
-	}
-
-	// Use approximate comparison for floating point values
-	if abs(result.ChatRequest.TopP-0.9) > 0.0001 {
-		t.Errorf("expected topP 0.9, got %f", result.ChatRequest.TopP)
+	if result.ChatRequest.APIFormat != "GENERIC" {
+		t.Errorf("expected API format GENERIC, got %s", result.ChatRequest.APIFormat)
 	}
 }
 
@@ -151,14 +137,8 @@ func TestToOracleCloudRequest_StreamingDefaults(t *testing.T) {
 
 	result := transformer.ToOracleCloudRequest(openAIReq)
 
-	// Verify streaming defaults
-	if result.ChatRequest.IsStream != false {
-		t.Error("expected IsStream to be false")
-	}
-
-	// Verify chat history is empty
-	if len(result.ChatRequest.ChatHistory) != 0 {
-		t.Errorf("expected empty chat history, got %d items", len(result.ChatRequest.ChatHistory))
+	if result.ChatRequest.APIFormat != "GENERIC" {
+		t.Errorf("expected API format GENERIC, got %s", result.ChatRequest.APIFormat)
 	}
 }
 

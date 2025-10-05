@@ -1,4 +1,3 @@
-// Package transform handles the conversion between OpenAI API format and Oracle Cloud GenAI format.
 // It provides functionality to transform OpenAI ChatCompletion requests into the format
 // expected by Oracle Cloud's Generative AI service.
 package transform
@@ -148,23 +147,33 @@ func (t *Transformer) ToOpenAIResponse(oracleResp types.OracleCloudResponse, ori
 	// Map finish reason from OCI to OpenAI format
 	finishReason := mapFinishReason(oracleResp.ChatResponse.FinishReason)
 
-	// Handle empty response text
-	responseText := oracleResp.ChatResponse.Text
-	if responseText == "" {
-		responseText = "" // Keep empty if no text provided by OCI
+	// Handle GENERIC format: extract all choices/messages
+	var choicesOut []types.ChatCompletionChoice
+	if oracleResp.ChatResponse.APIFormat == "GENERIC" && len(oracleResp.ChatResponse.Choices) > 0 {
+		for i, c := range oracleResp.ChatResponse.Choices {
+			msg := ""
+			if len(c.Message.Content) > 0 {
+				msg = c.Message.Content[0].Text
+			}
+			finish := finishReason
+			if c.FinishReason != "" {
+				finish = mapFinishReason(c.FinishReason)
+			}
+			choicesOut = append(choicesOut, types.ChatCompletionChoice{
+				Index:        i,
+				Message:      types.ChatCompletionMessage{Role: "assistant", Content: msg},
+				FinishReason: finish,
+			})
+		}
 	}
-
-	// Create the assistant's response message
-	assistantMessage := types.ChatCompletionMessage{
-		Role:    "assistant",
-		Content: responseText,
-	}
-
-	// Create the choice object
-	choice := types.ChatCompletionChoice{
-		Index:        0,
-		Message:      assistantMessage,
-		FinishReason: finishReason,
+	// Fallback: if not GENERIC or no choices, use legacy
+	if len(choicesOut) == 0 {
+		responseText := oracleResp.ChatResponse.Text
+		choicesOut = []types.ChatCompletionChoice{{
+			Index:        0,
+			Message:      types.ChatCompletionMessage{Role: "assistant", Content: responseText},
+			FinishReason: finishReason,
+		}}
 	}
 
 	// Map usage statistics with fallback values
@@ -194,7 +203,7 @@ func (t *Transformer) ToOpenAIResponse(oracleResp types.OracleCloudResponse, ori
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
 		Model:   model,
-		Choices: []types.ChatCompletionChoice{choice},
+		Choices: choicesOut,
 		Usage:   usage,
 	}
 

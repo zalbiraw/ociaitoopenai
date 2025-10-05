@@ -168,10 +168,10 @@ type OracleCloudChatResponse struct {
 	// APIFormat is the API format used
 	APIFormat string `json:"apiFormat"`
 
-	// Text is the generated response text
+	// Text is the generated response text (COHERE format)
 	Text string `json:"text"`
 
-	// ChatHistory contains the conversation history
+	// ChatHistory contains the conversation history (COHERE format)
 	ChatHistory []OracleCloudChatHistory `json:"chatHistory"`
 
 	// FinishReason indicates why the generation finished
@@ -179,6 +179,28 @@ type OracleCloudChatResponse struct {
 
 	// Usage contains token usage statistics
 	Usage OracleCloudUsage `json:"usage"`
+
+	// Choices is the list of choices (GENERIC format)
+	Choices []OracleGenericChoice `json:"choices,omitempty"`
+}
+
+// OracleGenericContent represents a content item (GENERIC)
+type OracleGenericContent struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// OracleGenericMessage represents a message in a choice (GENERIC)
+type OracleGenericMessage struct {
+	Role    string                 `json:"role"`
+	Content []OracleGenericContent `json:"content"`
+}
+
+// OracleGenericChoice represents a single choice (GENERIC)
+type OracleGenericChoice struct {
+	Index        int                  `json:"index"`
+	Message      OracleGenericMessage `json:"message"`
+	FinishReason string               `json:"finishReason"`
 }
 
 // OracleCloudResponse represents the complete response from Oracle Cloud GenAI.

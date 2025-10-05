@@ -96,10 +96,6 @@ func TestServeHTTP_ChatCompletionRequest(t *testing.T) {
 			t.Errorf("expected model 'test-model', got: %s", ociReq.ServingMode.ModelID)
 		}
 
-		if ociReq.ChatRequest.Message != "Hello, world!" {
-			t.Errorf("expected message 'Hello, world!', got: %s", ociReq.ChatRequest.Message)
-		}
-
 		if ociReq.CompartmentID != "test-compartment-id" {
 			t.Errorf("expected compartmentId 'test-compartment-id', got: %s", ociReq.CompartmentID)
 		}

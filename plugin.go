@@ -132,10 +132,10 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// Print OCI downstream status and result body (snippet)
 		log.Printf("[%s] OCI downstream status: %d", p.name, wrappedWriter.statusCode)
 		// Print OCI downstream status and a snippet of the response body
-		// bodySnippet := wrappedWriter.body.Bytes()
-		// if len(bodySnippet) > 512 {
-		// 	bodySnippet = bodySnippet[:512]
-		// }
+		bodySnippet := wrappedWriter.body.Bytes()
+		if len(bodySnippet) > 512 {
+			bodySnippet = bodySnippet[:512]
+		}
 		log.Printf("[%s] OCI downstream status: %d, body: %s", p.name, wrappedWriter.statusCode, string(bodySnippet))
 
 		// Transform the response back to OpenAI format
